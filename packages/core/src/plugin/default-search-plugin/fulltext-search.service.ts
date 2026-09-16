@@ -3,7 +3,8 @@ import { SearchInput, SearchResponse } from '@vendure/common/lib/generated-types
 import { Omit } from '@vendure/common/lib/omit';
 
 import { RequestContext } from '../../api/common/request-context';
-import { InternalServerError } from '../../common/error/errors';
+import { InternalServerError, UserInputError } from '../../common/error/errors';
+import { ConfigService } from '../../config/config.service';
 import { TransactionalConnection } from '../../connection/transactional-connection';
 import { Collection, FacetValue } from '../../entity';
 import { EventBus } from '../../event-bus/event-bus';
@@ -39,6 +40,7 @@ export class FulltextSearchService {
         private productVariantService: ProductVariantService,
         private searchIndexService: SearchIndexService,
         private searchService: SearchService,
+        private configService: ConfigService,
         @Inject(PLUGIN_INIT_OPTIONS) private options: DefaultSearchPluginInitOptions,
     ) {
         this.searchService.adopt(this);
@@ -53,7 +55,27 @@ export class FulltextSearchService {
         input: SearchInput,
         enabledOnly: boolean = false,
     ): Promise<Omit<Omit<SearchResponse, 'facetValues'>, 'collections'>> {
-        const items = await this._searchStrategy.getSearchResults(ctx, input, enabledOnly);
+        const normalized = this.normalizePagination(ctx, input);
+        let items =
+            normalized.take === 0
+                ? []
+                : await this._searchStrategy.getSearchResults(ctx, normalized, enabledOnly);
+        if (ctx.apiType === 'shop') {
+            const visible = await this.facetValueService.getPublicValueIds(
+                ctx,
+                items.flatMap(item => item.facetValueIds),
+            );
+            const parents = new Map(visible.map(value => [String(value.id), String(value.facetId)]));
+            items = items.map(item => {
+                const facetValueIds = [...new Set(item.facetValueIds)].filter(id => parents.has(String(id)));
+                const itemFacets = new Set(facetValueIds.map(id => parents.get(String(id))));
+                return {
+                    ...item,
+                    facetValueIds,
+                    facetIds: [...new Set(item.facetIds)].filter(id => itemFacets.has(String(id))),
+                };
+            });
+        }
         const totalItems = await this._searchStrategy.getTotalCount(ctx, input, enabledOnly);
         await this.eventBus.publish(new SearchEvent(ctx, input));
 
@@ -71,8 +93,13 @@ export class FulltextSearchService {
         input: SearchInput,
         enabledOnly: boolean = false,
     ): Promise<Array<{ facetValue: FacetValue; count: number }>> {
+        this.normalizePagination(ctx, input);
         const facetValueIdsMap = await this._searchStrategy.getFacetValueIds(ctx, input, enabledOnly);
-        const facetValues = await this.facetValueService.findByIds(ctx, Array.from(facetValueIdsMap.keys()));
+        const ids = Array.from(facetValueIdsMap.keys());
+        const facetValues =
+            ctx.apiType === 'shop'
+                ? await this.facetValueService.findPublicByIds(ctx, ids)
+                : await this.facetValueService.findByIds(ctx, ids);
         return facetValues.map((facetValue, index) => {
             return {
                 facetValue,
@@ -89,6 +116,7 @@ export class FulltextSearchService {
         input: SearchInput,
         enabledOnly: boolean = false,
     ): Promise<Array<{ collection: Collection; count: number }>> {
+        this.normalizePagination(ctx, input);
         const collectionIdsMap = await this._searchStrategy.getCollectionIds(ctx, input, enabledOnly);
         const collections = await this.collectionService.findByIds(ctx, Array.from(collectionIdsMap.keys()));
         return collections.map((collection, index) => {
@@ -97,6 +125,25 @@ export class FulltextSearchService {
                 count: collectionIdsMap.get(collection.id.toString()) as number,
             };
         });
+    }
+
+    private normalizePagination(
+        ctx: RequestContext,
+        input: SearchInput,
+    ): SearchInput & { take: number; skip: number } {
+        const limit =
+            ctx.apiType === 'shop'
+                ? this.configService.apiOptions.shopListQueryLimit
+                : this.configService.apiOptions.adminListQueryLimit;
+        const take = input.take ?? Math.min(25, limit);
+        const skip = input.skip ?? 0;
+        if (!Number.isSafeInteger(take) || take < 0 || !Number.isSafeInteger(skip) || skip < 0) {
+            throw new UserInputError('take and skip must be non-negative safe integers');
+        }
+        if (take > limit) {
+            throw new UserInputError('error.list-query-limit-exceeded', { limit });
+        }
+        return { ...input, take, skip };
     }
 
     /**

@@ -46,7 +46,8 @@ export class ShopProductsResolver {
     async products(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryProductsArgs,
-        @Relations({ entity: Product, omit: ['variants', 'assets'] }) relations: RelationPaths<Product>,
+        @Relations({ entity: Product, omit: ['variants', 'assets', 'facetValues'] })
+        relations: RelationPaths<Product>,
     ): Promise<PaginatedList<Translated<Product>>> {
         const options = this.enforceGuardFilter<Product>(args.options, { enabled: { eq: true } });
         return this.productService.findAll(ctx, options, relations);
@@ -56,7 +57,8 @@ export class ShopProductsResolver {
     async product(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryProductArgs,
-        @Relations({ entity: Product, omit: ['variants', 'assets'] }) relations: RelationPaths<Product>,
+        @Relations({ entity: Product, omit: ['variants', 'assets', 'facetValues'] })
+        relations: RelationPaths<Product>,
     ): Promise<Translated<Product> | undefined> {
         let result: Translated<Product> | undefined;
         if (args.id) {
@@ -135,7 +137,7 @@ export class ShopProductsResolver {
     async facets(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryFacetsArgs,
-        @Relations(Facet) relations: RelationPaths<Facet>,
+        @Relations({ entity: Facet, omit: ['values'] }) relations: RelationPaths<Facet>,
     ): Promise<PaginatedList<Translated<Facet>>> {
         const options = this.enforceGuardFilter<Facet>(args.options, { isPrivate: { eq: false } });
         return this.facetService.findAll(ctx, options, relations);
@@ -177,7 +179,7 @@ export class ShopProductsResolver {
     async facet(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryFacetArgs,
-        @Relations(Facet) relations: RelationPaths<Facet>,
+        @Relations({ entity: Facet, omit: ['values'] }) relations: RelationPaths<Facet>,
     ): Promise<Translated<Facet> | undefined> {
         const facet = await this.facetService.findOne(ctx, args.id, relations);
         if (facet && facet.isPrivate) {

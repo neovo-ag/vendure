@@ -400,7 +400,10 @@ export class CollectionService implements OnModuleInit {
             .getRepository(ctx, Collection)
             .createQueryBuilder('collection')
             .leftJoinAndSelect('collection.translations', 'translation')
-            .leftJoin('collection.productVariants', 'variant')
+            .innerJoin('collection.channels', 'collectionChannel', 'collectionChannel.id = :channelId', {
+                channelId: ctx.channelId,
+            })
+            .innerJoin('collection.productVariants', 'variant')
             .where('variant.product = :productId', { productId })
             .groupBy('collection.id, translation.id')
             .orderBy('collection.id', 'ASC');

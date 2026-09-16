@@ -15,6 +15,7 @@ import { ProductVariant } from '../../../entity/product-variant/product-variant.
 import { StockMovement } from '../../../entity/stock-movement/stock-movement.entity';
 import { LocaleStringHydrator } from '../../../service/helpers/locale-string-hydrator/locale-string-hydrator';
 import { AssetService } from '../../../service/services/asset.service';
+import { FacetValueService } from '../../../service/services/facet-value.service';
 import { ProductVariantService } from '../../../service/services/product-variant.service';
 import { StockLevelService } from '../../../service/services/stock-level.service';
 import { StockMovementService } from '../../../service/services/stock-movement.service';
@@ -30,6 +31,7 @@ export class ProductVariantEntityResolver {
         private assetService: AssetService,
         private localeStringHydrator: LocaleStringHydrator,
         private requestContextCache: RequestContextCacheService,
+        private facetValueService: FacetValueService,
     ) {}
 
     @ResolveField()
@@ -126,25 +128,7 @@ export class ProductVariantEntityResolver {
         @Parent() productVariant: ProductVariant,
         @Api() apiType: ApiType,
     ): Promise<Array<Translated<FacetValue>>> {
-        if (productVariant.facetValues?.length === 0) {
-            return [];
-        }
-        let facetValues: Array<Translated<FacetValue>>;
-        if (productVariant.facetValues?.[0]?.channels) {
-            facetValues = productVariant.facetValues as Array<Translated<FacetValue>>;
-        } else {
-            facetValues = await this.productVariantService.getFacetValuesForVariant(ctx, productVariant.id);
-        }
-
-        return facetValues.filter(fv => {
-            if (!fv.channels.find(c => idsAreEqual(c.id, ctx.channelId))) {
-                return false;
-            }
-            if (apiType === 'shop' && fv.facet.isPrivate) {
-                return false;
-            }
-            return true;
-        });
+        return this.facetValueService.getValuesForOwner(ctx, 'variant', productVariant.id);
     }
 
     @ResolveField()

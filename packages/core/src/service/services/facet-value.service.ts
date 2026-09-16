@@ -8,9 +8,11 @@ import {
     UpdateFacetValueInput,
 } from '@vendure/common/lib/generated-types';
 import { ID, PaginatedList } from '@vendure/common/lib/shared-types';
+import DataLoader from 'dataloader';
 
 import { RequestContext } from '../../api/common/request-context';
 import { RelationPaths } from '../../api/decorators/relations.decorator';
+import { RequestContextCacheService } from '../../cache/request-context-cache.service';
 import { Instrument } from '../../common/instrument-decorator';
 import { ListQueryOptions } from '../../common/types/common-types';
 import { Translated } from '../../common/types/locale-types';
@@ -49,6 +51,7 @@ export class FacetValueService {
         private eventBus: EventBus,
         private translator: TranslatorService,
         private listQueryBuilder: ListQueryBuilder,
+        private requestCache: RequestContextCacheService,
     ) {}
 
     /**
@@ -136,19 +139,160 @@ export class FacetValueService {
         );
     }
 
+    /** @internal */
+    async getPublicValueIds(ctx: RequestContext, ids: ID[]): Promise<Array<{ id: ID; facetId: ID }>> {
+        const uniqueIds = [
+            ...new Map(ids.filter(id => String(id).length > 0).map(id => [String(id), id])).values(),
+        ];
+        const loader = this.requestCache.get(
+            ctx,
+            'FacetValueService.publicValueIds',
+            () =>
+                new DataLoader<ID, { id: ID; facetId: ID } | undefined>(
+                    async keys => {
+                        const rows = await this.visibleValuesQuery(ctx)
+                            .select('value.id', 'id')
+                            .addSelect('value.facetId', 'facetId')
+                            .andWhere('value.id IN (:...ids)', { ids: [...new Set(keys)] })
+                            .getRawMany<{ id: ID; facetId: ID }>();
+                        const byId = new Map(rows.map(row => [String(row.id), row]));
+                        return keys.map(key => byId.get(String(key)));
+                    },
+                    { cache: false, maxBatchSize: 500 },
+                ),
+        );
+        const values = await Promise.all(uniqueIds.map(id => loader.load(id)));
+        return values.filter((value): value is { id: ID; facetId: ID } => value !== undefined);
+    }
+
+    /** @internal */
+    async findPublicByIds(ctx: RequestContext, ids: ID[]): Promise<Array<Translated<FacetValue>>> {
+        const result: Array<Translated<FacetValue>> = [];
+        const uniqueIds = [
+            ...new Map(ids.filter(id => String(id).length > 0).map(id => [String(id), id])).values(),
+        ];
+        for (let offset = 0; offset < uniqueIds.length; offset += 500) {
+            const values = await this.visibleValuesQuery(ctx)
+                .addSelect('facet')
+                .leftJoinAndSelect('value.translations', 'translation')
+                .leftJoinAndSelect('facet.translations', 'facetTranslation')
+                .andWhere('value.id IN (:...ids)', { ids: uniqueIds.slice(offset, offset + 500) })
+                .getMany();
+            result.push(...values.map(value => this.translator.translate(value, ctx, ['facet'])));
+        }
+        return result;
+    }
+
+    private visibleValuesQuery(ctx: RequestContext) {
+        return this.connection
+            .getRepository(ctx, FacetValue)
+            .createQueryBuilder('value')
+            .innerJoin('value.facet', 'facet')
+            .innerJoin('value.channels', 'valueChannel', 'valueChannel.id = :channelId', {
+                channelId: ctx.channelId,
+            })
+            .where('facet.isPrivate = :isPrivate', { isPrivate: false });
+    }
+
+    /**
+     * @internal
+     * Read authoritative associations rather than trusting potentially partial preloaded relations.
+     * The loader batches work but does not retain results across writes in the same request.
+     */
+    getValuesForOwner(
+        ctx: RequestContext,
+        ownerType: 'facet' | 'product' | 'variant',
+        id: ID,
+    ): Promise<Array<Translated<FacetValue>>> {
+        const loader = this.requestCache.get(
+            ctx,
+            `FacetValueService.owner:${ownerType}`,
+            () =>
+                new DataLoader<ID, Array<Translated<FacetValue>>>(
+                    async ids => {
+                        let ownerIds = [...new Map(ids.map(ownerId => [String(ownerId), ownerId])).values()];
+                        if (this.configService.authOptions.entityAccessControlStrategy.applyAccessControl) {
+                            const ownerEntity =
+                                ownerType === 'facet'
+                                    ? Facet
+                                    : ownerType === 'product'
+                                      ? Product
+                                      : ProductVariant;
+                            const allowed = await this.connection
+                                .getRepository<Facet | Product | ProductVariant>(ctx, ownerEntity)
+                                .createQueryBuilder('facetOwner')
+                                .select('facetOwner.id', 'id')
+                                .where('facetOwner.id IN (:...ownerIds)', { ownerIds })
+                                .getRawMany<{ id: ID }>();
+                            ownerIds = allowed.map(owner => owner.id);
+                            if (!ownerIds.length) {
+                                return ids.map(() => []);
+                            }
+                        }
+                        const qb = this.connection
+                            .getRepository(ctx, FacetValue)
+                            .createQueryBuilder('value')
+                            .innerJoinAndSelect('value.facet', 'facet')
+                            .leftJoinAndSelect('value.translations', 'translation')
+                            .leftJoinAndSelect('facet.translations', 'facetTranslation')
+                            .innerJoin('value.channels', 'valueChannel', 'valueChannel.id = :channelId', {
+                                channelId: ctx.channelId,
+                            });
+                        const ownerAlias = ownerType === 'facet' ? 'facet' : 'owner';
+                        if (ownerType !== 'facet') {
+                            qb.innerJoin(
+                                ownerType === 'product' ? 'value.products' : 'value.productVariants',
+                                'owner',
+                            );
+                        }
+                        qb.innerJoin(`${ownerAlias}.channels`, 'ownerChannel', 'ownerChannel.id = :channelId')
+                            .andWhere(`${ownerAlias}.id IN (:...ids)`, { ids: ownerIds })
+                            .orderBy('value.id', 'ASC');
+                        if (ownerType !== 'facet') {
+                            qb.addSelect('owner.id', 'ownerId');
+                        }
+                        if (ctx.apiType === 'shop') {
+                            qb.andWhere('facet.isPrivate = :isPrivate', { isPrivate: false });
+                        }
+                        const { entities, raw } = await qb.getRawAndEntities<{
+                            ownerId: ID;
+                            facet_id: ID;
+                            value_id: ID;
+                        }>();
+                        const values = new Map(
+                            entities.map(value => [
+                                String(value.id),
+                                this.translator.translate(value, ctx, ['facet']),
+                            ]),
+                        );
+                        const grouped = new Map<string, Map<string, Translated<FacetValue>>>();
+                        for (const row of raw) {
+                            const value = values.get(String(row.value_id));
+                            if (value) {
+                                const group =
+                                    grouped.get(String(ownerType === 'facet' ? row.facet_id : row.ownerId)) ??
+                                    new Map();
+                                group.set(String(value.id), value);
+                                grouped.set(
+                                    String(ownerType === 'facet' ? row.facet_id : row.ownerId),
+                                    group,
+                                );
+                            }
+                        }
+                        return ids.map(ownerId => [...(grouped.get(String(ownerId))?.values() ?? [])]);
+                    },
+                    { cache: false, maxBatchSize: 50 },
+                ),
+        );
+        return loader.load(id);
+    }
+
     /**
      * @description
      * Returns all FacetValues belonging to the Facet with the given id.
      */
     findByFacetId(ctx: RequestContext, id: ID): Promise<Array<Translated<FacetValue>>> {
-        return this.connection
-            .getRepository(ctx, FacetValue)
-            .find({
-                where: {
-                    facet: { id },
-                },
-            })
-            .then(values => values.map(facetValue => this.translator.translate(facetValue, ctx)));
+        return this.getValuesForOwner(ctx, 'facet', id);
     }
 
     /**

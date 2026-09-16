@@ -48,7 +48,7 @@ export class FacetResolver {
     facets(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryFacetsArgs,
-        @Relations(Facet) relations: RelationPaths<Facet>,
+        @Relations({ entity: Facet, omit: ['values'] }) relations: RelationPaths<Facet>,
     ): Promise<PaginatedList<Translated<Facet>>> {
         return this.facetService.findAll(ctx, args.options || undefined, relations);
     }
@@ -58,7 +58,7 @@ export class FacetResolver {
     async facet(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryFacetArgs,
-        @Relations(Facet) relations: RelationPaths<Facet>,
+        @Relations({ entity: Facet, omit: ['values'] }) relations: RelationPaths<Facet>,
     ): Promise<Translated<Facet> | undefined> {
         return this.facetService.findOne(ctx, args.id, relations);
     }

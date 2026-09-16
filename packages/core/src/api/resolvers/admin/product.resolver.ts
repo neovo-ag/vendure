@@ -53,7 +53,8 @@ export class ProductResolver {
     async products(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryProductsArgs,
-        @Relations({ entity: Product, omit: ['variants', 'assets'] }) relations: RelationPaths<Product>,
+        @Relations({ entity: Product, omit: ['variants', 'assets', 'facetValues'] })
+        relations: RelationPaths<Product>,
     ): Promise<PaginatedList<Translated<Product>>> {
         return this.productService.findAll(ctx, args.options || undefined, relations);
     }
@@ -63,7 +64,8 @@ export class ProductResolver {
     async product(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryProductArgs,
-        @Relations({ entity: Product, omit: ['variants', 'assets'] }) relations: RelationPaths<Product>,
+        @Relations({ entity: Product, omit: ['variants', 'assets', 'facetValues'] })
+        relations: RelationPaths<Product>,
     ): Promise<Translated<Product> | undefined> {
         if (args.id) {
             const product = await this.productService.findOne(ctx, args.id, relations);
@@ -83,7 +85,8 @@ export class ProductResolver {
     async productVariants(
         @Ctx() ctx: RequestContext,
         @Args() args: QueryProductVariantsArgs,
-        @Relations({ entity: ProductVariant, omit: ['assets'] }) relations: RelationPaths<ProductVariant>,
+        @Relations({ entity: ProductVariant, omit: ['assets', 'facetValues', 'product.facetValues'] })
+        relations: RelationPaths<ProductVariant>,
     ): Promise<PaginatedList<Translated<ProductVariant>>> {
         if (args.productId) {
             return this.productVariantService.getVariantsByProductId(

@@ -31,12 +31,7 @@ export class FacetEntityResolver {
 
     @ResolveField()
     async values(@Ctx() ctx: RequestContext, @Parent() facet: Facet): Promise<FacetValue[]> {
-        if (facet.values) {
-            return facet.values;
-        }
-        return this.requestContextCache.get(ctx, `FacetEntityResolver.values(${facet.id})`, () =>
-            this.facetValueService.findByFacetId(ctx, facet.id),
-        );
+        return this.facetValueService.findByFacetId(ctx, facet.id);
     }
 
     @ResolveField()

@@ -61,7 +61,8 @@ export class CollectionEntityResolver {
         @Parent() collection: Collection,
         @Args() args: { options: ProductVariantListOptions },
         @Api() apiType: ApiType,
-        @Relations({ entity: ProductVariant, omit: ['assets'] }) relations: RelationPaths<ProductVariant>,
+        @Relations({ entity: ProductVariant, omit: ['assets', 'facetValues', 'product.facetValues'] })
+        relations: RelationPaths<ProductVariant>,
     ): Promise<PaginatedList<Translated<ProductVariant>>> {
         let options: ListQueryOptions<Product> = args.options;
         if (apiType === 'shop') {

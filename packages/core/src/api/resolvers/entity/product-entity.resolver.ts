@@ -1,8 +1,7 @@
 import { Args, Info, Parent, ResolveField, Resolver } from '@nestjs/graphql';
 import { ProductVariantListOptions } from '@vendure/common/lib/generated-types';
 import { DEFAULT_CHANNEL_CODE } from '@vendure/common/lib/shared-constants';
-import { ID, PaginatedList } from '@vendure/common/lib/shared-types';
-import DataLoader from 'dataloader';
+import { PaginatedList } from '@vendure/common/lib/shared-types';
 
 import { RequestContextCacheService } from '../../../cache/request-context-cache.service';
 import { Translated } from '../../../common/types/locale-types';
@@ -64,7 +63,8 @@ export class ProductEntityResolver {
     async variants(
         @Ctx() ctx: RequestContext,
         @Parent() product: Product,
-        @Relations({ entity: ProductVariant, omit: ['assets'] }) relations: RelationPaths<ProductVariant>,
+        @Relations({ entity: ProductVariant, omit: ['assets', 'facetValues', 'product.facetValues'] })
+        relations: RelationPaths<ProductVariant>,
     ): Promise<Array<Translated<ProductVariant>>> {
         return this.productVariantService.getVariantsForProduct(ctx, product.id, relations);
     }
@@ -74,7 +74,8 @@ export class ProductEntityResolver {
         @Ctx() ctx: RequestContext,
         @Parent() product: Product,
         @Args() args: { options: ProductVariantListOptions },
-        @Relations({ entity: ProductVariant, omit: ['assets'] }) relations: RelationPaths<ProductVariant>,
+        @Relations({ entity: ProductVariant, omit: ['assets', 'facetValues', 'product.facetValues'] })
+        relations: RelationPaths<ProductVariant>,
     ): Promise<PaginatedList<ProductVariant>> {
         return this.productVariantService.getVariantsByProductId(ctx, product.id, args.options, relations);
     }
@@ -103,46 +104,7 @@ export class ProductEntityResolver {
         @Parent() product: Product,
         @Api() apiType: ApiType,
     ): Promise<Array<Translated<FacetValue>>> {
-        if (product.facetValues?.length === 0) {
-            return [];
-        }
-        let facetValues: Array<Translated<FacetValue>>;
-        if (product.facetValues) {
-            facetValues = product.facetValues as Array<Translated<FacetValue>>;
-        } else {
-            facetValues = await this.productService.getFacetValuesForProduct(ctx, product.id);
-        }
-        const loader = this.requestCache.get(
-            ctx,
-            'ProductEntityResolver.facetValues',
-            () =>
-                new DataLoader<ID[], Array<Translated<FacetValue>>>(
-                    async groups => {
-                        const ids = [...new Map(groups.flat().map(id => [String(id), id])).values()];
-                        const values: Array<Translated<FacetValue>> = [];
-                        for (let offset = 0; offset < ids.length; offset += 500) {
-                            values.push(
-                                ...(await this.facetValueService.findByIds(
-                                    ctx,
-                                    ids.slice(offset, offset + 500),
-                                )),
-                            );
-                        }
-                        return groups.map(group => {
-                            const groupIds = new Set(group.map(String));
-                            return values.filter(value => groupIds.has(String(value.id)));
-                        });
-                    },
-                    { cache: false, maxBatchSize: 50 },
-                ),
-        );
-        const filteredFacetValues = await loader.load(facetValues.map(value => value.id));
-
-        if (apiType === 'shop') {
-            return filteredFacetValues.filter(fv => !fv.facet.isPrivate);
-        } else {
-            return filteredFacetValues;
-        }
+        return this.facetValueService.getValuesForOwner(ctx, 'product', product.id);
     }
 
     @ResolveField()
