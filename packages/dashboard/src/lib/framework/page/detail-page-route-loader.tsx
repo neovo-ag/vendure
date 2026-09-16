@@ -50,9 +50,8 @@ export function detailPageRouteLoader<T extends TypedDocumentNode<any, any>>({
         );
         const result = isNew
             ? null
-            : await context.queryClient.ensureQueryData(
+            : await context.queryClient.fetchQuery(
                   getDetailQueryOptions(extendedQueryDocument, { id: params.id }),
-                  { id: params.id },
               );
 
         const entityField = getQueryName(resolvedQueryDocument);
