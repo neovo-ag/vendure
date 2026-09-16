@@ -17,6 +17,10 @@ for many purposes, such as:
 - Creating a collection of "best sellers" which is used to display a list of popular products.
 - Creating a collection of "sale items" which is used to apply a discount to all products in the collection, via a promotion.
 
+## Channel visibility
+
+The `Product.collections` field returns only collections assigned to the active [channel](/core-concepts/channels/). The Shop API also excludes private collections; the Admin API can return private collections within the active channel. A collection appears once even when it contains several variants of the product.
+
 ## Collection filters
 
 The specific product variants that belong to a collection are determined by the collection's [`CollectionFilters`](/reference/typescript-api/configuration/collection-filter/).

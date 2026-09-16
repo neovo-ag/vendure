@@ -51,6 +51,8 @@ Like most Vendure entities, both Facets and FacetValues support [custom fields](
 
 Facets and FacetValues are [channel-aware](/core-concepts/channels/). In a multi-channel setup, you can control which facets are available in each channel. A facet created in one channel will also be visible in the default channel, but not necessarily in other sub-channels unless explicitly assigned.
 
+The `Facet.values` field returns only values assigned to the active channel, in both the Shop and Admin APIs. Assigning a facet to a channel does not by itself make all of its child values visible there. Similarly, `Product.facetValues` and `ProductVariant.facetValues` return only values assigned to the active channel. The Shop API also excludes values belonging to private facets.
+
 This means you can have channel-specific facets — for instance, a "Region Exclusive" facet that only exists in certain regional channels — while still sharing common facets like "Brand" across all channels.
 
 ## Related topics

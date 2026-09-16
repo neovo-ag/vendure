@@ -44,6 +44,18 @@ The Shop API exposes a `search` query that accepts a [`SearchInput`](/reference/
 - **price range** — Filter by minimum and/or maximum price.
 - **Facet value aggregations** — The response includes counts of how many results match each facet value, enabling your storefront to render dynamic filter menus.
 
+### Pagination with DefaultSearchPlugin
+
+`DefaultSearchPlugin` applies [`shopListQueryLimit` and `adminListQueryLimit`](/reference/typescript-api/configuration/api-options/) to the `take` input in the corresponding API. A value above the configured limit is rejected.
+
+When omitted, `take` defaults to 25, or the configured limit if it is lower, and `skip` defaults to 0. Both values must be non-negative integers. Setting `take: 0` returns an empty `items` array, while still allowing you to query `totalItems` and aggregations.
+
+### Facet visibility with DefaultSearchPlugin
+
+Shop search excludes private facets and their values from facet aggregations and from each item's `facetIds` and `facetValueIds`. Returned values must belong to the active channel. These checks use current facet data, so making a facet private hides its metadata even before the search index is refreshed. Admin search retains private facet visibility.
+
+Hiding facet metadata does not remove otherwise matching products or change `totalItems`. Filtering by a known private or out-of-channel facet value ID still uses indexed associations and can affect matches and counts. Matching products and counts can therefore reveal associations even though the facet data itself is hidden.
+
 ## Search and channels
 
 The search index is [channel-aware](/core-concepts/channels/). Each search index entry is scoped to a specific channel, so a search query made against the "UK" channel will only return products assigned to that channel, with prices in the channel's currency. This is handled transparently — the active channel is determined from the request context, and the search plugin filters accordingly.

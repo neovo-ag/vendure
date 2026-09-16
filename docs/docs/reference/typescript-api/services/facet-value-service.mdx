@@ -63,7 +63,9 @@ A separate method was created just to avoid a breaking change in v1.9.
 
 <MemberInfo kind="method" type={`(ctx: <a href='/reference/typescript-api/request/request-context#requestcontext'>RequestContext</a>, id: <a href='/reference/typescript-api/common/id#id'>ID</a>) => Promise<Array<Translated<<a href='/reference/typescript-api/entities/facet-value#facetvalue'>FacetValue</a>>>>`}   />
 
-Returns all FacetValues belonging to the Facet with the given id.
+Returns all FacetValues belonging to the Facet with the given id in the active channel.
+Both the Facet and its values must be assigned to that channel. In the Shop API,
+values belonging to a private Facet are excluded.
 ### findByFacetIdList
 
 <MemberInfo kind="method" type={`(ctx: <a href='/reference/typescript-api/request/request-context#requestcontext'>RequestContext</a>, id: <a href='/reference/typescript-api/common/id#id'>ID</a>, options?: ListQueryOptions<<a href='/reference/typescript-api/entities/facet-value#facetvalue'>FacetValue</a>>, relations?: RelationPaths<<a href='/reference/typescript-api/entities/facet-value#facetvalue'>FacetValue</a>>) => Promise<<a href='/reference/typescript-api/common/paginated-list#paginatedlist'>PaginatedList</a><Translated<<a href='/reference/typescript-api/entities/facet-value#facetvalue'>FacetValue</a>>>>`}   />

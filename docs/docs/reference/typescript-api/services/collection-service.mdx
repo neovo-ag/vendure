@@ -93,7 +93,8 @@ to the Root Collection.
 
 <MemberInfo kind="method" type={`(ctx: <a href='/reference/typescript-api/request/request-context#requestcontext'>RequestContext</a>, productId: <a href='/reference/typescript-api/common/id#id'>ID</a>, publicOnly: boolean) => Promise<Array<Translated<<a href='/reference/typescript-api/entities/collection#collection'>Collection</a>>>>`}   />
 
-Returns all Collections which are associated with the given Product ID.
+Returns all Collections which are associated with the given Product ID and assigned to the active channel.
+When `publicOnly` is true, private Collections are excluded.
 ### getDescendants
 
 <MemberInfo kind="method" type={`(ctx: <a href='/reference/typescript-api/request/request-context#requestcontext'>RequestContext</a>, rootId: <a href='/reference/typescript-api/common/id#id'>ID</a>, maxDepth: number = Number.MAX_SAFE_INTEGER) => Promise<Array<Translated<<a href='/reference/typescript-api/entities/collection#collection'>Collection</a>>>>`}   />

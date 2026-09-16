@@ -289,7 +289,9 @@ export class FacetValueService {
 
     /**
      * @description
-     * Returns all FacetValues belonging to the Facet with the given id.
+     * Returns all FacetValues belonging to the Facet with the given id in the active channel.
+     * Both the Facet and its values must be assigned to that channel. In the Shop API,
+     * values belonging to a private Facet are excluded.
      */
     findByFacetId(ctx: RequestContext, id: ID): Promise<Array<Translated<FacetValue>>> {
         return this.getValuesForOwner(ctx, 'facet', id);

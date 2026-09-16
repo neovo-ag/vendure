@@ -389,7 +389,8 @@ export class CollectionService implements OnModuleInit {
 
     /**
      * @description
-     * Returns all Collections which are associated with the given Product ID.
+     * Returns all Collections which are associated with the given Product ID and assigned to the active channel.
+     * When `publicOnly` is true, private Collections are excluded.
      */
     async getCollectionsByProductId(
         ctx: RequestContext,

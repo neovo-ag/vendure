@@ -144,7 +144,7 @@ export interface ApiOptions {
     /**
      * @description
      * The maximum number of items that may be returned by a query which returns a `PaginatedList` response. In other words,
-     * this is the upper limit of the `take` input option.
+     * this is the upper limit of the `take` input option. This limit also applies to `DefaultSearchPlugin` search results.
      *
      * @default 100
      */
@@ -152,7 +152,7 @@ export interface ApiOptions {
     /**
      * @description
      * The maximum number of items that may be returned by a query which returns a `PaginatedList` response. In other words,
-     * this is the upper limit of the `take` input option.
+     * this is the upper limit of the `take` input option. This limit also applies to `DefaultSearchPlugin` search results.
      *
      * @default 1000
      */

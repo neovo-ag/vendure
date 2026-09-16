@@ -82,13 +82,13 @@ The debug config to the shop GraphQL API
 <MemberInfo kind="property" type={`number`} default={`100`}   />
 
 The maximum number of items that may be returned by a query which returns a `PaginatedList` response. In other words,
-this is the upper limit of the `take` input option.
+this is the upper limit of the `take` input option. This limit also applies to `DefaultSearchPlugin` search results.
 ### adminListQueryLimit
 
 <MemberInfo kind="property" type={`number`} default={`1000`}   />
 
 The maximum number of items that may be returned by a query which returns a `PaginatedList` response. In other words,
-this is the upper limit of the `take` input option.
+this is the upper limit of the `take` input option. This limit also applies to `DefaultSearchPlugin` search results.
 ### adminApiValidationRules
 
 <MemberInfo kind="property" type={`Array<(context: ValidationContext) => any>`} default={`[]`}   />

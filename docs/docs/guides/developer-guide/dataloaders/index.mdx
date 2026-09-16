@@ -25,6 +25,14 @@ A Dataloader can return anything: `boolean`, `ProductVariant`, `string`, etc.
 
 Dataloaders can have a huge impact on performance. If your `fieldResolver` executes queries, and you log these queries, you should see a cascade of queries before the implementation of the dataloader, change to a single query using multiple `ids` after you implement it.
 
+### Request scope and caching
+
+A field resolver can use a dataloader defined in a separate service, as shown in the example below. Keep each loader scoped to the request so that results are not shared between customers or channels. You can also use [`RequestContextCacheService`](/reference/typescript-api/cache/request-context-cache-service/) to associate a loader with a `RequestContext`; do not share a loader globally across requests.
+
+Batching and result caching are separate features. If data changes during a request, clear the affected cached keys before reading again, or use `cache: false` to batch calls without retaining results. With caching disabled, later batches may query the same key again, and the batch function must handle duplicate keys while preserving the input order and result count.
+
+The `maxBatchSize` option limits the number of keys passed to the batch function. Choose a size that keeps your queries within the database's parameter limit, allowing for any additional query parameters. The batch function should query the keys together rather than execute a separate query for each key.
+
 ## Do I need this for `CustomField` relations? 
 
 No, not normally. `CustomField` relations are automatically added to the root query for the `entity` that they are part of. So, they are loaded as part of the query that loads that entity.
