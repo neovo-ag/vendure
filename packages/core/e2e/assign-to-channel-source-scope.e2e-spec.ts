@@ -32,6 +32,7 @@ import {
     createProductOptionGroupDocument,
     createRoleDocument,
     createShippingMethodDocument,
+    getFacetChannelsDocument,
     getProductWithVariantsDocument,
     removeFacetsFromChannelDocument,
     removeProductFromChannelDocument,
@@ -789,11 +790,10 @@ describe('assign-to-channel source Channel scoping', () => {
         });
         expect(removeFacetsFromChannel).toEqual([]);
 
-        // Facet has no `channels` field in the Admin API, so read it back by id in the victim
-        // Channel instead.
-        await asSuperAdminIn(VICTIM_CHANNEL_TOKEN);
-        const { facet } = await adminClient.query(getFacetByIdDocument, { id: victimFacetId });
-        expect(facet?.id).toBe(victimFacetId);
+        // The Facet is untouched in the Channels it really belongs to.
+        await asSuperAdminIn(E2E_DEFAULT_CHANNEL_TOKEN);
+        const { facet } = await adminClient.query(getFacetChannelsDocument, { id: victimFacetId });
+        expect(facet?.channels.map(c => c.id).sort()).toEqual(['T_1', victimChannelId].sort());
     });
 
     it('removeProductOptionGroupsFromChannel is a no-op for an entity not visible in the active Channel', async () => {

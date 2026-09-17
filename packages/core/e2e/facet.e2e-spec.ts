@@ -19,6 +19,7 @@ import {
     createFacetValuesDocument,
     deleteFacetDocument,
     deleteFacetValuesDocument,
+    getFacetChannelsDocument,
     getFacetListDocument,
     getFacetListSimpleDocument,
     getFacetValueDocument,
@@ -540,6 +541,18 @@ describe('Facet resolver', () => {
             expect(createFacet.code).toBe('channel-facet');
 
             createdFacet = createFacet;
+
+            adminClient.setChannelToken(E2E_DEFAULT_CHANNEL_TOKEN);
+            const { facet: fromDefault } = await adminClient.query(getFacetChannelsDocument, {
+                id: createFacet.id,
+            });
+            expect(fromDefault?.channels.map(c => c.id).sort()).toEqual(['T_1', secondChannel.id].sort());
+
+            adminClient.setChannelToken(SECOND_CHANNEL_TOKEN);
+            const { facet: fromSecond } = await adminClient.query(getFacetChannelsDocument, {
+                id: createFacet.id,
+            });
+            expect(fromSecond?.channels.map(c => c.id)).toEqual([secondChannel.id]);
         });
 
         it('facets list in channel', async () => {
@@ -709,6 +722,10 @@ describe('Facet resolver', () => {
             adminClient.setChannelToken(SECOND_CHANNEL_TOKEN);
             const { facets: after } = await adminClient.query(getFacetListSimpleDocument);
             expect(after.items).toEqual([]);
+
+            adminClient.setChannelToken(E2E_DEFAULT_CHANNEL_TOKEN);
+            const { facet } = await adminClient.query(getFacetChannelsDocument, { id: createdFacet.id });
+            expect(facet?.channels.map(c => c.id)).toEqual(['T_1']);
         });
 
         it('assigning to channel', async () => {
@@ -729,6 +746,10 @@ describe('Facet resolver', () => {
             adminClient.setChannelToken(SECOND_CHANNEL_TOKEN);
             const { facets: after } = await adminClient.query(getFacetListSimpleDocument);
             expect(after.items).toEqual([{ id: 'T_4', name: 'Channel Facet' }]);
+
+            adminClient.setChannelToken(E2E_DEFAULT_CHANNEL_TOKEN);
+            const { facet } = await adminClient.query(getFacetChannelsDocument, { id: createdFacet.id });
+            expect(facet?.channels.map(c => c.id).sort()).toEqual(['T_1', secondChannel.id].sort());
         });
     });
 
