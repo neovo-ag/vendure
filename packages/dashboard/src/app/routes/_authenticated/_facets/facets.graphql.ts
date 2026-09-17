@@ -73,6 +73,11 @@ export const facetDetailDocument = graphql(`
                 name
             }
             customFields
+            channels {
+                id
+                code
+                token
+            }
         }
     }
 `);
