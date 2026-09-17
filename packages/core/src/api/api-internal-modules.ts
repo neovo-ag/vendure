@@ -54,7 +54,7 @@ import {
     CustomerEntityResolver,
 } from './resolvers/entity/customer-entity.resolver';
 import { CustomerGroupEntityResolver } from './resolvers/entity/customer-group-entity.resolver';
-import { FacetEntityResolver } from './resolvers/entity/facet-entity.resolver';
+import { FacetAdminEntityResolver, FacetEntityResolver } from './resolvers/entity/facet-entity.resolver';
 import { FacetValueEntityResolver } from './resolvers/entity/facet-value-entity.resolver';
 import {
     FulfillmentAdminEntityResolver,
@@ -174,6 +174,7 @@ export const entityResolvers = [
 export const adminEntityResolvers = [
     AdministratorEntityResolver,
     CustomerAdminEntityResolver,
+    FacetAdminEntityResolver,
     OrderAdminEntityResolver,
     PaymentMethodEntityResolver,
     FulfillmentAdminEntityResolver,

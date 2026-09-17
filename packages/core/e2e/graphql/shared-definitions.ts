@@ -1659,6 +1659,18 @@ export const getFacetWithValuesDocument = graphql(
     [facetWithValuesFragment],
 );
 
+export const getFacetChannelsDocument = graphql(`
+    query GetFacetChannels($id: ID!) {
+        facet(id: $id) {
+            id
+            channels {
+                id
+                code
+            }
+        }
+    }
+`);
+
 export const getFacetWithValueListDocument = graphql(
     `
         query GetFacetWithValueList($id: ID!, $options: FacetValueListOptions) {
