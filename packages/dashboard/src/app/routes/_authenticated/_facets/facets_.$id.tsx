@@ -1,4 +1,5 @@
 import { SlugInput } from '@/vdb/components/data-input/index.js';
+import { AssignedChannels } from '@/vdb/components/shared/assigned-channels.js';
 import { ErrorPage } from '@/vdb/components/shared/error-page.js';
 import { FormFieldWrapper } from '@/vdb/components/shared/form-field-wrapper.js';
 import { TranslatableFormFieldWrapper } from '@/vdb/components/shared/translatable-form-field.js';
@@ -6,7 +7,9 @@ import { Button } from '@/vdb/components/ui/button.js';
 import { Input } from '@/vdb/components/ui/input.js';
 import { Switch } from '@/vdb/components/ui/switch.js';
 import { NEW_ENTITY_PATH } from '@/vdb/constants.js';
-import {    CustomFieldsPageBlock,
+import { ActionBarItem } from '@/vdb/framework/layout-engine/action-bar-item-wrapper.js';
+import {
+    CustomFieldsPageBlock,
     DetailFormGrid,
     Page,
     PageActionBar,
@@ -14,14 +17,21 @@ import {    CustomFieldsPageBlock,
     PageLayout,
     PageTitle,
 } from '@/vdb/framework/layout-engine/page-layout.js';
-import { ActionBarItem } from '@/vdb/framework/layout-engine/action-bar-item-wrapper.js';
 import { detailPageRouteLoader } from '@/vdb/framework/page/detail-page-route-loader.js';
 import { useDetailPage } from '@/vdb/framework/page/use-detail-page.js';
+import { api } from '@/vdb/graphql/api.js';
+import { useChannel } from '@/vdb/hooks/use-channel.js';
 import { Trans, useLingui } from '@lingui/react/macro';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { FacetValuesTable } from './components/facet-values-table.js';
-import { createFacetDocument, facetDetailDocument, updateFacetDocument } from './facets.graphql.js';
+import {
+    assignFacetsToChannelDocument,
+    createFacetDocument,
+    facetDetailDocument,
+    removeFacetsFromChannelDocument,
+    updateFacetDocument,
+} from './facets.graphql.js';
 
 const pageId = 'facet-detail';
 
@@ -45,6 +55,7 @@ function FacetDetailPage() {
     const navigate = useNavigate();
     const creatingNewEntity = params.id === NEW_ENTITY_PATH;
     const { t } = useLingui();
+    const { channels } = useChannel();
 
     const { form, submitHandler, entity, isPending, resetForm } = useDetailPage({
         pageId,
@@ -140,6 +151,28 @@ function FacetDetailPage() {
                 {entity && (
                     <PageBlock column="main" blockId="facet-values" title={<Trans>Facet values</Trans>}>
                         <FacetValuesTable facetId={entity?.id} />
+                    </PageBlock>
+                )}
+
+                {channels.length > 1 && entity && (
+                    <PageBlock column="side" blockId="channels" title={<Trans>Channels</Trans>}>
+                        <AssignedChannels
+                            channels={entity.channels}
+                            entityId={entity.id}
+                            entityType="facet"
+                            canUpdate={!creatingNewEntity}
+                            assignMutationFn={api.mutate(assignFacetsToChannelDocument)}
+                            removeMutationFn={api.mutate(removeFacetsFromChannelDocument)}
+                            buildRemoveInput={(eid, channelId) => ({
+                                facetIds: [eid],
+                                channelId,
+                            })}
+                            buildAssignInput={(eid, channelId) => ({
+                                facetIds: [eid],
+                                channelId,
+                            })}
+                            queryKeyScope={['DetailPage', 'facet']}
+                        />
                     </PageBlock>
                 )}
             </PageLayout>

@@ -1,11 +1,15 @@
 import { Args, Parent, ResolveField, Resolver } from '@nestjs/graphql';
 import { FacetValueListOptions } from '@vendure/common/lib/generated-types';
+import { DEFAULT_CHANNEL_CODE } from '@vendure/common/lib/shared-constants';
 import { PaginatedList } from '@vendure/common/lib/shared-types';
 
 import { RequestContextCacheService } from '../../../cache/request-context-cache.service';
+import { idsAreEqual } from '../../../common/utils';
+import { Channel } from '../../../entity/channel/channel.entity';
 import { Facet } from '../../../entity/facet/facet.entity';
 import { FacetValue } from '../../../entity/facet-value/facet-value.entity';
 import { LocaleStringHydrator } from '../../../service/helpers/locale-string-hydrator/locale-string-hydrator';
+import { FacetService } from '../../../service/services/facet.service';
 import { FacetValueService } from '../../../service/services/facet-value.service';
 import { RequestContext } from '../../common/request-context';
 import { RelationPaths, Relations } from '../../decorators/relations.decorator';
@@ -47,5 +51,17 @@ export class FacetEntityResolver {
         @Relations({ entity: FacetValue }) relations: RelationPaths<FacetValue>,
     ): Promise<PaginatedList<FacetValue>> {
         return this.facetValueService.findByFacetIdList(ctx, facet.id, args.options, relations);
+    }
+}
+
+@Resolver('Facet')
+export class FacetAdminEntityResolver {
+    constructor(private facetService: FacetService) {}
+
+    @ResolveField()
+    async channels(@Ctx() ctx: RequestContext, @Parent() facet: Facet): Promise<Channel[]> {
+        const isDefaultChannel = ctx.channel.code === DEFAULT_CHANNEL_CODE;
+        const channels = facet.channels || (await this.facetService.getFacetChannels(ctx, facet.id));
+        return channels.filter(channel => (isDefaultChannel ? true : idsAreEqual(channel.id, ctx.channelId)));
     }
 }

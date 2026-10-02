@@ -20,6 +20,7 @@ import { Translated } from '../../common/types/locale-types';
 import { assertFound, idsAreEqual } from '../../common/utils';
 import { ConfigService } from '../../config/config.service';
 import { TransactionalConnection } from '../../connection/transactional-connection';
+import { Channel } from '../../entity/channel/channel.entity';
 import { FacetValue } from '../../entity/facet-value/facet-value.entity';
 import { FacetTranslation } from '../../entity/facet/facet-translation.entity';
 import { Facet } from '../../entity/facet/facet.entity';
@@ -279,6 +280,18 @@ export class FacetService {
 
     /**
      * @description
+     * Returns all Channels to which the Facet is assigned.
+     */
+    async getFacetChannels(ctx: RequestContext, facetId: ID): Promise<Channel[]> {
+        const facet = await this.connection.getEntityOrThrow(ctx, Facet, facetId, {
+            relations: ['channels'],
+            channelId: ctx.channelId,
+        });
+        return facet.channels;
+    }
+
+    /**
+     * @description
      * Assigns Facets to the specified Channel
      */
     async assignFacetsToChannel(
@@ -365,26 +378,22 @@ export class FacetService {
                 );
                 productCount = counts.productCount;
                 variantCount = counts.variantCount;
+            }
 
-                const isInUse = !!(productCount || variantCount);
-                const both = !!(productCount && variantCount) ? 'both' : 'single';
-                const i18nVars = { products: productCount, variants: variantCount, both };
-                let result: Translated<Facet> | undefined;
-
-                if (!isInUse || input.force) {
-                    await this.channelService.removeFromChannels(ctx, Facet, facet.id, [input.channelId]);
-                    await Promise.all(
-                        facet.values.map(fv =>
-                            this.channelService.removeFromChannels(ctx, FacetValue, fv.id, [input.channelId]),
-                        ),
-                    );
-                    result = await this.findOne(ctx, facet.id);
-                    if (result) {
-                        results.push(result);
-                    }
-                } else {
-                    results.push(new FacetInUseError({ facetCode: facet.code, productCount, variantCount }));
+            const isInUse = !!(productCount || variantCount);
+            if (!isInUse || input.force) {
+                await this.channelService.removeFromChannels(ctx, Facet, facet.id, [input.channelId]);
+                await Promise.all(
+                    facet.values.map(fv =>
+                        this.channelService.removeFromChannels(ctx, FacetValue, fv.id, [input.channelId]),
+                    ),
+                );
+                const result = await this.findOne(ctx, facet.id);
+                if (result) {
+                    results.push(result);
                 }
+            } else {
+                results.push(new FacetInUseError({ facetCode: facet.code, productCount, variantCount }));
             }
         }
 
